@@ -19,7 +19,7 @@ CONFIG = {
     "walk_stride": .75, "run_stride": 1.0,
     "ref_distance": 4, "rolloff_factor": 1.1,
     "cutoff_near": 4500, "cutoff_far": 500, "reverb_mix": .18,
-    "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .23,
+    "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .06,
     "walk_range": 35, "run_range": 55,
     "footstep_gain_variation": .05,
     "mouse_sensitivity": .0075, "arrow_turn_speed": 2.2,

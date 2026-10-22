@@ -242,8 +242,27 @@ class GameTests(unittest.TestCase):
         self.game.set_slider(1030)
         self.assertEqual(main.CONFIG['mouse_sensitivity'], .015)
 
+    def test_directional_strength_increases_channel_separation(self):
+        audio = self.game.audio
+        player = dict(x=30., y=30., yaw=0.)
+        main.CONFIG['reverb_mix'] = 0
+        ratios = []
+        for strength in (1., 1.8):
+            main.CONFIG['directional_strength'] = strength
+            with patch.object(audio, 'next_footstep', return_value=audio.footsteps[0]), patch.object(audio, 'play') as play:
+                audio.step(33, 25, 'walk', player)
+                left, right = play.call_args.args
+                ratios.append(np.sum(right ** 2) / np.sum(left ** 2))
+                self.assertTrue(np.all(np.isfinite(right)))
+        self.assertGreater(ratios[1], ratios[0] * 3)
+        # Centered player footsteps are unaffected by directional exaggeration.
+        with patch.object(audio, 'play') as play:
+            audio.step(30, 30, 'walk', player, own=True)
+            np.testing.assert_array_equal(*play.call_args.args)
+
     def test_map_colors_and_slider_clamps(self):
         self.playing()
+        self.game.player["yaw"] = 0.
         self.game.bird = True
         self.game.draw()
         # Map is at (195, 15), scale 690 / 60. Sample away from heading line.

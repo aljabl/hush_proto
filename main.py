@@ -17,7 +17,7 @@ CONFIG = {
     "walk_speed": 1.5, "run_speed": 3.5,
     "entity_walk_speed": 1.2, "entity_run_speed": 3,
     "walk_stride": .75, "run_stride": 1.0,
-    "ref_distance": 4, "rolloff_factor": 1.1,
+    "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 1.8,
     "cutoff_near": 4500, "cutoff_far": 500, "reverb_mix": .18,
     "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .06,
     "walk_range": 35, "run_range": 55,
@@ -143,7 +143,7 @@ class Audio:
         else:
             dx, dy = x - player["x"], y - player["y"]
             side = (dx * math.cos(player["yaw"]) + dy * math.sin(player["yaw"])) / max(.001, distance)
-            pan = max(-1, min(1, side))
+            pan = max(-1, min(1, side * CONFIG["directional_strength"]))
             attenuation = CONFIG["ref_distance"] / (CONFIG["ref_distance"] + CONFIG["rolloff_factor"] * max(0, distance - CONFIG["ref_distance"]))
             edge = min(1, max(0, (audible - distance) / 5))
             gain *= attenuation * edge
@@ -202,6 +202,7 @@ class Game:
             ("entity_run_gain", 0, 2), ("player_gain", 0, 1),
             ("walk_range", 10, 60), ("run_range", 20, 85),
             ("mouse_sensitivity", .001, .015),
+            ("directional_strength", 1, 3),
         ]
 
     def mouse_look_enabled(self):
@@ -443,7 +444,7 @@ class Game:
                 pygame.draw.line(self.screen, (80, 80, 80), (710, y + 21), (1030, y + 21), 4)
                 fraction = (CONFIG[key] - low) / (high - low)
                 pygame.draw.circle(self.screen, (180, 180, 180), (round(710 + fraction * 320), y + 21), 7)
-            self.text("H hide · Space map · Esc exit · T check · E export", 710, 650)
+            self.text("H hide · Space map · Esc exit · T check · E export", 710, 685)
         if self.bird:
             self.screen.fill((0, 0, 0))
             self.draw_map(pygame.Rect(195, 15, 690, 690))

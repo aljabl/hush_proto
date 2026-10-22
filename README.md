@@ -33,3 +33,5 @@ Footsteps use `audio/footstep-on-concrete-1.wav` through `footstep-on-concrete-4
 Footstep audio is from [SFXLibrary](https://www.sfxlibrary.com/category/footstep/?p=1).
 
 Mouse turning uses relative movement with a hidden, captured cursor for continuous rotation. The default sensitivity is 0.0075 radians per pixel (about 838 pixels for a full turn), three times the previous sensitivity. Tune **mouse sensitivity** in the **H** researcher panel to suit your mouse or trackpad.
+
+**Directional strength** in the **H** panel exaggerates left/right separation for the entity (default **1.8**, range **1–3**; **1** restores the original panning). Higher values push off-center sounds more strongly into the corresponding ear. This can make the side easier to identify while reducing angular precision once panning saturates. It does not distinguish directly ahead from directly behind; turn to resolve those positions. Player footsteps remain centered.

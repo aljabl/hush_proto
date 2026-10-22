@@ -260,6 +260,36 @@ class GameTests(unittest.TestCase):
             audio.step(30, 30, 'walk', player, own=True)
             np.testing.assert_array_equal(*play.call_args.args)
 
+    def test_hrtf_azimuth_follows_player_heading(self):
+        player = dict(x=30., y=30., yaw=0.)
+        audio = self.game.audio
+        for x, y, yaw, expected in ((30, 24, 0, 0), (30, 36, 0, math.pi), (36, 30, 0, math.pi / 2), (36, 30, math.pi / 2, 0)):
+            player['yaw'] = yaw
+            with patch.object(audio.hrtf, 'process', wraps=audio.hrtf.process) as process, patch.object(audio, 'play'):
+                audio.step(x, y, 'walk', player)
+                self.assertAlmostEqual(process.call_args.args[1], expected)
+        with patch.object(audio.hrtf, 'process') as process, patch.object(audio, 'play'):
+            audio.step(30, 30, 'walk', player, own=True)
+            process.assert_not_called()
+
+    def test_front_rear_contrast_has_distinct_timbres(self):
+        audio = self.game.audio
+        n = main.SAMPLE_RATE
+        t = np.arange(n) / main.SAMPLE_RATE
+        signal = np.sin(2 * np.pi * 500 * t) + np.sin(2 * np.pi * 6000 * t)
+        ratios = []
+        for angle in (0, math.pi / 2, math.pi):
+            output = audio.directional_tone(signal, angle)
+            spectrum = np.abs(np.fft.rfft(output))
+            ratios.append(spectrum[6000] / spectrum[500])
+        self.assertGreater(ratios[0], ratios[1])
+        self.assertGreater(ratios[1], ratios[2] * 2)
+        main.CONFIG['front_back_contrast'] = 0
+        np.testing.assert_allclose(audio.directional_tone(signal, math.pi), signal, atol=1e-12)
+        # Crossing the rear wrap does not produce a sudden color change.
+        main.CONFIG['front_back_contrast'] = .85
+        np.testing.assert_allclose(audio.directional_tone(signal, math.pi - .001), audio.directional_tone(signal, -math.pi + .001), atol=1e-12)
+
     def test_map_colors_and_slider_clamps(self):
         self.playing()
         self.game.player["yaw"] = 0.

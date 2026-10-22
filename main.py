@@ -11,14 +11,16 @@ from pathlib import Path
 import numpy as np
 import pygame
 
+from hrtf import HRTF
+
 
 CONFIG = {
     "world": 60, "round_seconds": 60, "capture_radius": 2,
     "walk_speed": 1.5, "run_speed": 3.5,
     "entity_walk_speed": 1.2, "entity_run_speed": 3,
     "walk_stride": .75, "run_stride": 1.0,
-    "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 1.8,
-    "cutoff_near": 4500, "cutoff_far": 500, "reverb_mix": .18,
+    "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 2.2, "front_back_contrast": .85,
+    "cutoff_near": 18000, "cutoff_far": 5000, "reverb_mix": .18,
     "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .06,
     "walk_range": 35, "run_range": 55,
     "footstep_gain_variation": .05,
@@ -109,6 +111,7 @@ class Audio:
             self.footsteps.append(mono)
         self._sample_bag = []
         self._last_sample = None
+        self.hrtf = HRTF()
 
     def play(self, left, right):
         data = np.column_stack((left, right))
@@ -124,6 +127,17 @@ class Audio:
         self._last_sample = self._sample_bag.pop()
         variation = CONFIG["footstep_gain_variation"]
         return self.footsteps[self._last_sample] * self.rng.uniform(1 - variation, 1 + variation)
+
+    def directional_tone(self, mono, azimuth):
+        """An intentional timbre cue on top of the measured HRTF: front crisp,
+        rear muffled, sides neutral. Continuous weighting avoids sector jumps.
+        """
+        facing = math.cos(azimuth)
+        frequencies = np.fft.rfftfreq(len(mono), 1 / SAMPLE_RATE)
+        high_band = frequencies ** 2 / (frequencies ** 2 + 1800. ** 2)
+        decibels = CONFIG["front_back_contrast"] * (4 * max(0, facing) - 10 * max(0, -facing))
+        equalizer = 10 ** (decibels * high_band / 20)
+        return np.fft.irfft(np.fft.rfft(mono) * equalizer, len(mono))
 
     def step(self, x, y, mode, player, own=False, force=False):
         distance = math.hypot(x - player["x"], y - player["y"])
@@ -147,14 +161,21 @@ class Audio:
             attenuation = CONFIG["ref_distance"] / (CONFIG["ref_distance"] + CONFIG["rolloff_factor"] * max(0, distance - CONFIG["ref_distance"]))
             edge = min(1, max(0, (audible - distance) / 5))
             gain *= attenuation * edge
-            left = mono * gain * math.sqrt((1 - pan) / 2)
-            right = mono * gain * math.sqrt((1 + pan) / 2)
+            # Heading zero faces north (-y); positive azimuth is to the right.
+            forward = dx * math.sin(player["yaw"]) - dy * math.cos(player["yaw"])
+            lateral = dx * math.cos(player["yaw"]) + dy * math.sin(player["yaw"])
+            azimuth = math.atan2(lateral, forward)
+            mono = self.directional_tone(mono, azimuth)
+            left, right = self.hrtf.process(mono, azimuth)
+            left *= gain * math.sqrt((1 - pan) / 2)
+            right *= gain * math.sqrt((1 + pan) / 2)
+            echo = np.pad(mono, (0, len(left) - len(mono)))
             delay = int(SAMPLE_RATE * .035)
-            wet = CONFIG["reverb_mix"] * (.2 + .8 * depth)
+            wet = CONFIG["reverb_mix"] * (.2 + .8 * depth) * (1 - .7 * abs(side))
             left = np.pad(left, (0, delay))
             right = np.pad(right, (0, delay))
-            left[delay:] += mono * gain * wet * .22
-            right[delay:] += mono * gain * wet * .22
+            left[delay:] += echo * gain * wet * .22
+            right[delay:] += echo * gain * wet * .22
         self.play(left, right)
 
     def tone(self, notes, duration=.3):
@@ -197,12 +218,13 @@ class Game:
         pygame.key.stop_text_input()
         self.sliders = [
             ("ref_distance", 1, 15), ("rolloff_factor", .1, 3),
-            ("cutoff_near", 1500, 8000), ("cutoff_far", 150, 2000),
+            ("cutoff_near", 1500, 20000), ("cutoff_far", 150, 12000),
             ("reverb_mix", 0, 1), ("entity_walk_gain", 0, 2),
             ("entity_run_gain", 0, 2), ("player_gain", 0, 1),
             ("walk_range", 10, 60), ("run_range", 20, 85),
             ("mouse_sensitivity", .001, .015),
             ("directional_strength", 1, 3),
+            ("front_back_contrast", 0, 1),
         ]
 
     def mouse_look_enabled(self):
@@ -303,7 +325,7 @@ class Game:
             else:
                 self.edit_tester(False)
             for i in range(len(self.sliders)):
-                if pygame.Rect(710, 178 + i * 42, 320, 20).collidepoint(x, y):
+                if pygame.Rect(710, 178 + i * 36, 320, 20).collidepoint(x, y):
                     self.dragging = i
                     self.set_slider(x)
         if event.type == pygame.MOUSEBUTTONUP:
@@ -438,7 +460,7 @@ class Game:
             self.text(self.tester_id + ("|" if self.edit_id else ""), 710, 100)
             self.text("Audio / input settings", 710, 140)
             for i, (key, low, high) in enumerate(self.sliders):
-                y = 166 + i * 42
+                y = 166 + i * 36
                 value = f"{CONFIG[key]:.4f}" if key == "mouse_sensitivity" else f"{CONFIG[key]:.2f}"
                 self.text(f"{key.replace('_', ' ')}: {value}", 710, y)
                 pygame.draw.line(self.screen, (80, 80, 80), (710, y + 21), (1030, y + 21), 4)

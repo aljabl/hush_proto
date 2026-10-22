@@ -23,12 +23,17 @@ class RouteTests(unittest.TestCase):
         self.assertTrue(routes[0]['practice'])
         self.assertEqual(len({r['id'] for r in routes}), 7)
         for route in routes:
-            self.assertEqual(len(route['legs']) * 5, 60)
+            self.assertAlmostEqual(route['duration'], 60)
             if not route['practice']:
                 self.assertGreaterEqual(math.dist(route['start'], (30, 30)), 25)
                 self.assertEqual({leg[3] for leg in route['legs']}, {'walk', 'run'})
+                points = [leg[1] for leg in route['legs']] + [route['legs'][-1][2]]
+                self.assertGreaterEqual(max(p[0] for p in points) - min(p[0] for p in points), 48)
+                self.assertGreaterEqual(max(p[1] for p in points) - min(p[1] for p in points), 48)
             for start, a, b, mode, speed in route['legs']:
-                self.assertAlmostEqual(math.dist(a, b), speed * 5)
+                midpoint = main.route_position(route, start + math.dist(a, b) / speed / 2)
+                self.assertAlmostEqual(midpoint[0], (a[0] + b[0]) / 2)
+                self.assertAlmostEqual(midpoint[1], (a[1] + b[1]) / 2)
                 self.assertLess(speed, main.CONFIG['run_speed'])
                 self.assertTrue(all(0 <= v <= 60 for point in (a, b) for v in point))
                 self.assertEqual(main.route_position(route, start)[:2], a)

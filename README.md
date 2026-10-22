@@ -11,7 +11,7 @@ Wear headphones. The playtest view is black during each round. **Space** starts 
 
 **W/A/S/D** moves, **Shift** runs, and mouse motion or **Left/Right arrows** turns. **H** opens the researcher map and live audio sliders. Click the tester ID field to enter an ID. **T** plays a circling sound check. **E** writes JSON, sample CSV, and summary CSV to the current directory. Closing the window quits the app.
 
-The six test routes are shuffled without repeats after a practice route. Every route has twelve five-second legs and exactly 60 seconds of scripted travel. A capture within 2 m ends the round early. Sample data is recorded at 10 Hz; the practice flag lets analysts exclude the practice round.
+The six test routes are shuffled without repeats after a practice route. Each test route follows distinct waypoints across at least 48 m of both map axes, mixing running and walking. Travel lasts exactly 60 seconds; the last waypoint segment ends at the time limit. The extra practice route remains a simple straight path. A capture within 2 m ends the round early. Sample data is recorded at 10 Hz; the practice flag lets analysts exclude the practice round.
 
 Python/Pygame does not provide Web Audio's HRTF. This version uses the four concrete footstep recordings in `audio/`, with stereo processing with left/right panning, distance attenuation, distance-based low-pass filtering, and short synthesized echo. It gives left/right localization but limited front/back cues. **T** checks headphone orientation. Mouse turning and arrow-key turning both work in the full bird’s-eye map. Mouse grab is released for the researcher panel so its controls can be clicked.
 

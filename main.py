@@ -24,14 +24,15 @@ CONFIG = {
     "footstep_gain_variation": .05,
     "mouse_sensitivity": .0075, "arrow_turn_speed": 2.2,
 }
+# Authored waypoints, tagged by travel mode. The last leg is cut at 60 s.
 ROUTE_SPECS = [
-    ("practice", (8, 30), [0, 0, 0, 0, 180, 180, 180, 180, 0, 0, 0, 0], "wwwwwwwwwwww", True),
-    ("NW", (5, 5), [45, 225, 0, 180, 45, 225, 90, 270, 0, 180, 45, 225], "rrwwrrwwwwrr", False),
-    ("NE", (55, 5), [135, 315, 180, 0, 135, 315, 90, 270, 180, 0, 135, 315], "rrwwrrwwwwrr", False),
-    ("SE", (55, 55), [225, 45, 180, 0, 225, 45, 270, 90, 180, 0, 225, 45], "rrwwrrwwwwrr", False),
-    ("SW", (5, 55), [315, 135, 0, 180, 315, 135, 270, 90, 0, 180, 315, 135], "rrwwrrwwwwrr", False),
-    ("N", (30, 3), [90, 270, 0, 180, 90, 270, 0, 180, 90, 270, 0, 180], "rrwwrrwwrrww", False),
-    ("S", (30, 57), [270, 90, 0, 180, 270, 90, 0, 180, 270, 90, 0, 180], "rrwwrrwwrrww", False),
+    ("practice", (8, 30), [(32, 30, "walk"), (8, 30, "walk"), (32, 30, "walk")], True),
+    ("NW", (4, 4), [(56, 10, "run"), (50, 56, "run"), (5, 48, "run"), (18, 8, "walk")], False),
+    ("NE", (56, 4), [(7, 18, "run"), (14, 55, "run"), (55, 45, "run"), (30, 5, "walk")], False),
+    ("SE", (56, 56), [(8, 50, "run"), (6, 5, "run"), (51, 13, "run"), (35, 50, "walk")], False),
+    ("SW", (4, 56), [(16, 6, "run"), (56, 20, "run"), (45, 55, "run"), (9, 30, "walk")], False),
+    ("N", (30, 3), [(56, 45, "run"), (5, 54, "run"), (10, 6, "run"), (50, 30, "walk")], False),
+    ("S", (30, 57), [(4, 15, "run"), (55, 6, "run"), (52, 55, "run"), (12, 30, "walk")], False),
 ]
 SAMPLE_RATE = 44100
 WIDTH, HEIGHT = 1080, 720
@@ -39,23 +40,31 @@ WIDTH, HEIGHT = 1080, 720
 
 def make_routes():
     routes = []
-    for name, start, angles, modes, practice in ROUTE_SPECS:
-        x, y = start
+    for name, start, waypoints, practice in ROUTE_SPECS:
+        position = start
+        elapsed = 0.
         legs = []
-        for i, (angle, letter) in enumerate(zip(angles, modes)):
-            mode = "run" if letter == "r" else "walk"
+        for x, y, mode in waypoints:
+            target = (x, y)
             speed = CONFIG["entity_run_speed" if mode == "run" else "entity_walk_speed"]
-            a = math.radians(angle)
-            end = (x + math.cos(a) * speed * 5, y + math.sin(a) * speed * 5)
-            legs.append((i * 5, (x, y), end, mode, speed))
-            x, y = end
-        routes.append(dict(id=name, start=start, legs=legs, practice=practice))
-        if abs(5 * len(legs) - 60) > .5:
+            distance = math.dist(position, target)
+            if distance == 0:
+                continue
+            duration = min(distance / speed, CONFIG["round_seconds"] - elapsed)
+            fraction = duration * speed / distance
+            end = tuple(a + (b - a) * fraction for a, b in zip(position, target))
+            legs.append((elapsed, position, end, mode, speed))
+            elapsed += duration
+            position = end
+            if elapsed >= CONFIG["round_seconds"] - 1e-9:
+                break
+        routes.append(dict(id=name, start=start, legs=legs, practice=practice, duration=elapsed))
+        if abs(elapsed - CONFIG["round_seconds"]) > .5:
             print(f"WARNING: {name} duration is not 60 s", file=sys.stderr)
         if not practice and math.dist(start, (30, 30)) < 25:
             print(f"WARNING: {name} starts too close", file=sys.stderr)
         for _, a, b, _, speed in legs:
-            if any(v < 0 or v > 60 for p in (a, b) for v in p):
+            if any(v < 0 or v > CONFIG["world"] for point in (a, b) for v in point):
                 print(f"WARNING: {name} leaves bounds", file=sys.stderr)
             if speed >= CONFIG["run_speed"]:
                 print(f"WARNING: {name} entity speed too high", file=sys.stderr)
@@ -63,8 +72,17 @@ def make_routes():
 
 
 def route_position(route, seconds):
-    start, a, b, mode, _ = route["legs"][max(0, min(len(route["legs"]) - 1, int(seconds / 5)))]
-    t = max(0, min(1, (seconds - start) / 5))
+    if seconds >= route["duration"]:
+        _, _, end, mode, _ = route["legs"][-1]
+        return end[0], end[1], mode
+    leg = route["legs"][0]
+    for candidate in route["legs"]:
+        if candidate[0] > seconds:
+            break
+        leg = candidate
+    start, a, b, mode, speed = leg
+    duration = math.dist(a, b) / speed
+    t = max(0, min(1, (seconds - start) / duration))
     return a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, mode
 
 

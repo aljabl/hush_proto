@@ -22,7 +22,7 @@ CONFIG = {
     "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .23,
     "walk_range": 35, "run_range": 55,
     "footstep_gain_variation": .05,
-    "mouse_sensitivity": .0025, "arrow_turn_speed": 2.2,
+    "mouse_sensitivity": .0075, "arrow_turn_speed": 2.2,
 }
 ROUTE_SPECS = [
     ("practice", (8, 30), [0, 0, 0, 0, 180, 180, 180, 180, 0, 0, 0, 0], "wwwwwwwwwwww", True),
@@ -183,10 +183,15 @@ class Game:
             ("reverb_mix", 0, 1), ("entity_walk_gain", 0, 2),
             ("entity_run_gain", 0, 2), ("player_gain", 0, 1),
             ("walk_range", 10, 60), ("run_range", 20, 85),
+            ("mouse_sensitivity", .001, .015),
         ]
 
+    def mouse_look_enabled(self):
+        # The bird's-eye view is playable; the researcher panel needs a cursor.
+        return bool(self.round and self.focused and (self.bird or not self.research))
+
     def grab(self):
-        enabled = bool(self.round and self.focused and not self.bird and not self.research)
+        enabled = self.mouse_look_enabled()
         pygame.event.set_grab(enabled)
         pygame.mouse.set_visible(not enabled)
         pygame.mouse.get_rel()
@@ -246,7 +251,8 @@ class Game:
 
     def set_slider(self, x):
         key, low, high = self.sliders[self.dragging]
-        CONFIG[key] = round(low + (high - low) * max(0, min(1, (x - 710) / 320)), 2)
+        precision = 5 if key == "mouse_sensitivity" else 2
+        CONFIG[key] = round(low + (high - low) * max(0, min(1, (x - 710) / 320)), precision)
 
     def edit_tester(self, enabled):
         self.edit_id = enabled
@@ -269,7 +275,7 @@ class Game:
             self.grab()
         if event.type == pygame.TEXTINPUT and self.edit_id:
             self.tester_id = (self.tester_id + "".join(c for c in event.text if c.isprintable()))[:40]
-        if event.type == pygame.MOUSEMOTION and pygame.event.get_grab():
+        if event.type == pygame.MOUSEMOTION and self.mouse_look_enabled():
             self.player["yaw"] += event.rel[0] * CONFIG["mouse_sensitivity"]
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.research and not self.bird:
             x, y = event.pos
@@ -411,14 +417,15 @@ class Game:
             self.text("Tester ID", 710, 76)
             pygame.draw.rect(self.screen, (45, 45, 45), pygame.Rect(700, 96, 350, 28))
             self.text(self.tester_id + ("|" if self.edit_id else ""), 710, 100)
-            self.text("Audio settings", 710, 140)
+            self.text("Audio / input settings", 710, 140)
             for i, (key, low, high) in enumerate(self.sliders):
                 y = 166 + i * 42
-                self.text(f"{key.replace('_', ' ')}: {CONFIG[key]:.2f}", 710, y)
+                value = f"{CONFIG[key]:.4f}" if key == "mouse_sensitivity" else f"{CONFIG[key]:.2f}"
+                self.text(f"{key.replace('_', ' ')}: {value}", 710, y)
                 pygame.draw.line(self.screen, (80, 80, 80), (710, y + 21), (1030, y + 21), 4)
                 fraction = (CONFIG[key] - low) / (high - low)
                 pygame.draw.circle(self.screen, (180, 180, 180), (round(710 + fraction * 320), y + 21), 7)
-            self.text("H hide · Space map · Esc exit · T check · E export", 710, 604)
+            self.text("H hide · Space map · Esc exit · T check · E export", 710, 650)
         if self.bird:
             self.screen.fill((0, 0, 0))
             self.draw_map(pygame.Rect(195, 15, 690, 690))

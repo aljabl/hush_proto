@@ -13,7 +13,7 @@ Wear headphones. The playtest view is black during each round. **Space** starts 
 
 The six test routes are shuffled without repeats after a practice route. Every route has twelve five-second legs and exactly 60 seconds of scripted travel. A capture within 2 m ends the round early. Sample data is recorded at 10 Hz; the practice flag lets analysts exclude the practice round.
 
-Python/Pygame does not provide Web Audio's HRTF. This version uses the four concrete footstep recordings in `audio/`, with stereo processing with left/right panning, distance attenuation, distance-based low-pass filtering, and short synthesized echo. It gives left/right localization but limited front/back cues. **T** checks headphone orientation. Mouse grab is released while a map is shown; arrow keys remain available for turning.
+Python/Pygame does not provide Web Audio's HRTF. This version uses the four concrete footstep recordings in `audio/`, with stereo processing with left/right panning, distance attenuation, distance-based low-pass filtering, and short synthesized echo. It gives left/right localization but limited front/back cues. **T** checks headphone orientation. Mouse turning and arrow-key turning both work in the full bird’s-eye map. Mouse grab is released for the researcher panel so its controls can be clicked.
 
 
 ## Verification
@@ -31,3 +31,5 @@ The Pygame review used Context7's `/pygame/pygame` official-source documentation
 Footsteps use `audio/footstep-on-concrete-1.wav` through `footstep-on-concrete-4.wav` for both player and entity. The app preloads these files relative to `main.py`, uses all four in shuffled order, and avoids consecutive repeats. Walking and running keep their respective stride, gain, and audible-range settings; distance filtering and stereo panning still apply. Small gain variation is controlled by `footstep_gain_variation` in `CONFIG`. The supplied recordings replace the procedural footstep generator; confirmation and countdown tones remain synthesized.
 
 Footstep audio is from [SFXLibrary](https://www.sfxlibrary.com/category/footstep/?p=1).
+
+Mouse turning uses relative movement with a hidden, captured cursor for continuous rotation. The default sensitivity is 0.0075 radians per pixel (about 838 pixels for a full turn), three times the previous sensitivity. Tune **mouse sensitivity** in the **H** researcher panel to suit your mouse or trackpad.

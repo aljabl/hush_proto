@@ -195,6 +195,48 @@ class GameTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'footstep-on-concrete-1.wav'):
                 main.Audio()
 
+    def test_bird_view_supports_mouse_and_arrow_turning(self):
+        self.playing()
+        self.game.research = True
+        self.key(pygame.K_SPACE)
+        self.assertTrue(self.game.bird)
+        with patch('pygame.event.set_grab') as grab:
+            self.game.grab()
+            grab.assert_called_once_with(True)
+        before = self.game.player['yaw']
+        motion = pygame.event.Event(pygame.MOUSEMOTION, rel=(80, 0), pos=(500, 300))
+        self.game.event(motion)
+        self.assertAlmostEqual(self.game.player['yaw'] - before, 80 * main.CONFIG['mouse_sensitivity'])
+        before = self.game.player['yaw']
+        self.keys[pygame.K_RIGHT] = True
+        self.game.update(.1)
+        self.assertAlmostEqual(self.game.player['yaw'] - before, .1 * main.CONFIG['arrow_turn_speed'])
+        self.key(pygame.K_SPACE)
+        before = self.game.player['yaw']
+        self.game.event(motion)
+        self.assertEqual(self.game.player['yaw'], before)
+        with patch('pygame.event.set_grab') as grab:
+            self.game.grab()
+            grab.assert_called_once_with(False)
+        self.game.bird = True
+        self.game.focused = False
+        self.game.event(motion)
+        self.assertEqual(self.game.player['yaw'], before)
+
+    def test_mouse_turn_is_continuous_and_sensitivity_is_adjustable(self):
+        self.playing()
+        start = self.game.player['yaw']
+        # More than a full turn, accumulated from ordinary relative motion.
+        for _ in range(100):
+            self.game.event(pygame.event.Event(pygame.MOUSEMOTION, rel=(10, 0), pos=(0, 0)))
+        self.assertAlmostEqual(self.game.player['yaw'] - start, 1000 * main.CONFIG['mouse_sensitivity'])
+        self.assertGreater(self.game.player['yaw'] - start, math.tau)
+        self.game.dragging = next(i for i, slider in enumerate(self.game.sliders) if slider[0] == 'mouse_sensitivity')
+        self.game.set_slider(710)
+        self.assertEqual(main.CONFIG['mouse_sensitivity'], .001)
+        self.game.set_slider(1030)
+        self.assertEqual(main.CONFIG['mouse_sensitivity'], .015)
+
     def test_map_colors_and_slider_clamps(self):
         self.playing()
         self.game.bird = True

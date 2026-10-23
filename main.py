@@ -461,6 +461,24 @@ class Game:
                          (ox + (px + math.sin(self.player["yaw"]) * 2) * scale,
                           oy + (py - math.cos(self.player["yaw"]) * 2) * scale), 2)
 
+    def draw_start_screen(self):
+        self.text("HUSH — audio localization playtest", 240, 110)
+        self.text("Headphones required. Find the entity by listening to its footsteps.", 240, 150)
+        controls = [
+            ("W / A / S / D", "Move"),
+            ("Mouse / Left and Right arrows", "Turn"),
+            ("Hold Shift", "Run"),
+            ("Space", "Start next round / toggle bird's-eye map during play"),
+            ("Esc", "Exit the current round"),
+            ("H", "Researcher map, tester ID, and settings"),
+            ("T", "Circling headphone sound check"),
+            ("E", "Export session as JSON and CSV"),
+        ]
+        for i, (key, action) in enumerate(controls):
+            y = 220 + i * 40
+            self.text(key, 140, y)
+            self.text(action, 430, y)
+
     def draw(self):
         self.screen.fill((0, 0, 0))
         if self.research:
@@ -486,6 +504,8 @@ class Game:
         if self.bird:
             self.screen.fill((0, 0, 0))
             self.draw_map(pygame.Rect(195, 15, 690, 690))
+        if self.round_index == 0 and not self.round and not self.research and not self.bird:
+            self.draw_start_screen()
         if not self.round and self.message:
             self.text(self.message, 24, HEIGHT - 37)
         pygame.display.flip()

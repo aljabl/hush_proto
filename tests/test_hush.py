@@ -37,8 +37,26 @@ class RouteTests(unittest.TestCase):
                 self.assertLess(speed, main.CONFIG['run_speed'])
                 self.assertTrue(all(0 <= v <= 60 for point in (a, b) for v in point))
                 self.assertEqual(main.route_position(route, start)[:2], a)
-            self.assertEqual(main.route_position(route, 60)[:2], route['legs'][-1][2])
+            endpoint = route['start'] if route['practice'] else route['legs'][-1][2]
+            self.assertEqual(main.route_position(route, 60)[:2], endpoint)
             self.assertEqual(main.route_position(route, -1)[:2], route['start'])
+
+    def test_practice_circle_makes_three_rotations_in_sixty_seconds(self):
+        route = main.make_routes()[0]
+        radius = route['circle_radius']
+        angles = []
+        for seconds in np.linspace(0, 60, 601):
+            x, y, mode = main.route_position(route, seconds)
+            self.assertAlmostEqual(math.hypot(x - 30, y - 30), radius)
+            self.assertTrue(0 <= x <= 60 and 0 <= y <= 60)
+            self.assertEqual(mode, 'walk')
+            angles.append(math.atan2(x - 30, 30 - y))
+        unwrapped = np.unwrap(angles)
+        self.assertAlmostEqual(unwrapped[-1] - unwrapped[0], math.tau * 3)
+        self.assertAlmostEqual(math.tau * radius / 20, main.CONFIG['entity_walk_speed'])
+        for seconds in (0, 20, 40, 60):
+            np.testing.assert_allclose(main.route_position(route, seconds)[:2], route['start'])
+
 
 
 class GameTests(unittest.TestCase):
@@ -125,7 +143,7 @@ class GameTests(unittest.TestCase):
 
     def test_capture_and_timeout_summaries(self):
         self.playing()
-        self.game.player.update(x=8., y=30.)
+        self.game.player.update(x=self.game.entity['x'], y=self.game.entity['y'])
         self.game.update(0)
         self.assertEqual(self.game.summaries[-1]['outcome'], 'captured')
         self.assertEqual(self.game.summaries[-1]['time_to_capture'], 0)
@@ -297,7 +315,8 @@ class GameTests(unittest.TestCase):
         self.game.draw()
         # Map is at (195, 15), scale 690 / 60. Sample away from heading line.
         self.assertEqual(tuple(self.game.screen.get_at((540 - 3, 360 + 3)))[:3], (60, 220, 60))
-        self.assertEqual(tuple(self.game.screen.get_at((287, 360)))[:3], (240, 60, 60))
+        entity_pixel = (round(195 + self.game.entity['x'] * 11.5), round(15 + self.game.entity['y'] * 11.5))
+        self.assertEqual(tuple(self.game.screen.get_at(entity_pixel))[:3], (240, 60, 60))
         self.game.dragging = 0
         self.game.set_slider(-100)
         self.assertEqual(main.CONFIG['ref_distance'], 1)

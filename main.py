@@ -18,6 +18,7 @@ CONFIG = {
     "world": 60, "round_seconds": 60, "capture_radius": 2,
     "walk_speed": 1.5, "run_speed": 3.5,
     "entity_walk_speed": 1.2, "entity_run_speed": 3,
+    "practice_rotations": 3,
     "walk_stride": .75, "run_stride": 1.0,
     "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 2.2, "front_back_contrast": .85,
     "cutoff_near": 18000, "cutoff_far": 5000, "reverb_mix": .18,
@@ -28,7 +29,6 @@ CONFIG = {
 }
 # Authored waypoints, tagged by travel mode. The last leg is cut at 60 s.
 ROUTE_SPECS = [
-    ("practice", (8, 30), [(32, 30, "walk"), (8, 30, "walk"), (32, 30, "walk")], True),
     ("NW", (4, 4), [(56, 10, "run"), (50, 56, "run"), (5, 48, "run"), (18, 8, "walk")], False),
     ("NE", (56, 4), [(7, 18, "run"), (14, 55, "run"), (55, 45, "run"), (30, 5, "walk")], False),
     ("SE", (56, 56), [(8, 50, "run"), (6, 5, "run"), (51, 13, "run"), (35, 50, "walk")], False),
@@ -41,7 +41,17 @@ WIDTH, HEIGHT = 1080, 720
 
 
 def make_routes():
-    routes = []
+    # Keep the circle centered on the fixed player spawn. Derive the radius
+    # from walking speed so three full rotations take exactly one minute.
+    center = (CONFIG["world"] / 2, CONFIG["world"] / 2)
+    radius = CONFIG["entity_walk_speed"] * CONFIG["round_seconds"] / (math.tau * CONFIG["practice_rotations"])
+    practice = dict(id="practice", start=(center[0], center[1] - radius),
+                    legs=[], practice=True, duration=CONFIG["round_seconds"],
+                    circle_center=center, circle_radius=radius,
+                    rotations=CONFIG["practice_rotations"])
+    if radius > CONFIG["world"] / 2 or radius <= CONFIG["capture_radius"]:
+        print("WARNING: practice circle leaves bounds or starts within capture range", file=sys.stderr)
+    routes = [practice]
     for name, start, waypoints, practice in ROUTE_SPECS:
         position = start
         elapsed = 0.
@@ -74,6 +84,12 @@ def make_routes():
 
 
 def route_position(route, seconds):
+    if "circle_center" in route:
+        t = max(0, min(route["duration"], seconds))
+        angle = math.tau * ((route["rotations"] * t / route["duration"]) % 1)
+        cx, cy = route["circle_center"]
+        radius = route["circle_radius"]
+        return cx + radius * math.sin(angle), cy - radius * math.cos(angle), "walk"
     if seconds >= route["duration"]:
         _, _, end, mode, _ = route["legs"][-1]
         return end[0], end[1], mode

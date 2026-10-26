@@ -20,7 +20,7 @@ CONFIG = {
     "entity_walk_speed": 1.2, "entity_run_speed": 3,
     "practice_rotations": 3,
     "walk_stride": .75, "run_stride": 1.0,
-    "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 2.2, "front_back_contrast": .85,
+    "ref_distance": 4, "rolloff_factor": 1.1, "directional_strength": 3.5, "front_back_contrast": 1.8,
     "cutoff_near": 18000, "cutoff_far": 5000, "reverb_mix": .18,
     "entity_walk_gain": .78, "entity_run_gain": 1.15, "player_gain": .06,
     "walk_range": 35, "run_range": 55,
@@ -239,8 +239,8 @@ class Game:
             ("entity_run_gain", 0, 2), ("player_gain", 0, 1),
             ("walk_range", 10, 60), ("run_range", 20, 85),
             ("mouse_sensitivity", .001, .015),
-            ("directional_strength", 1, 3),
-            ("front_back_contrast", 0, 1),
+            ("directional_strength", 1, 4),
+            ("front_back_contrast", 0, 2),
         ]
 
     def mouse_look_enabled(self):
